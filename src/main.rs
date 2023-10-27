@@ -65,7 +65,8 @@ fn render(program: u32) {
             gl::STATIC_DRAW,
         );
 
-        let coord2d = gl::GetAttribLocation(program, CString::new("coord2d").unwrap().as_ptr());
+        let cstring = CString::new("coord2d").unwrap();
+        let coord2d = gl::GetAttribLocation(program, cstring.as_ptr());
         gl::EnableVertexAttribArray(coord2d as u32);
         gl::VertexAttribPointer(coord2d as u32, 2, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
 
