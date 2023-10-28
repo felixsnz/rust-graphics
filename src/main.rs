@@ -1,39 +1,86 @@
 use glfw::{Action, Context, Key};
 use std::ffi::CString;
 use std::ptr;
+use std::fs;
 
-fn compile_shader(shader_type: u32, source: &str) -> Result<u32, String> {
-    
-    let c_str = CString::new(source.as_bytes()).unwrap();
-    let mut status = gl::FALSE as i32;
+
+fn main() {
+    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+
+    // Create a windowed mode window and its OpenGL context
+    let (mut window, events) = glfw.create_window(640, 480, "My First Triangle", glfw::WindowMode::Windowed)
+        .expect("Failed to create GLFW window.");
+
+    // Make the window's context current
+    window.make_current();
+
+    // Load the OpenGL function pointers
+    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+
+    let program = init_resources().expect("Failed to initialize resources.");
+
+    while !window.should_close() {
+        // Swap front and back buffers
+        window.swap_buffers();
+
+        // Poll for and process events
+        glfw.poll_events();
+        for (_, event) in glfw::flush_messages(&events) {
+            match event {
+                glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+                    window.set_should_close(true)
+                }
+                _ => {}
+            }
+        }
+
+        render(program);
+    }
+}
+
+// Function to read shader file and return its content as String
+fn read_shader_file(path: &str) -> Result<String, std::io::Error> {
+    fs::read_to_string(path)
+}
+
+fn compile_shader(shader_type: u32, path: &str) -> Result<u32, String> {
+    let source = match read_shader_file(path) {
+        Ok(src) => src,
+        Err(_) => return Err(String::from("Failed to read shader file")),
+    };
+
+    let shader: u32;
     unsafe {
-        let shader = gl::CreateShader(shader_type);
+        shader = gl::CreateShader(shader_type);
+    }
+
+    let c_str = CString::new(source.as_bytes()).unwrap();
+
+    if shader == 0 {
+        return Err(String::from("Failed to create shader"));
+    }
+
+    unsafe {
         gl::ShaderSource(shader, 1, &c_str.as_ptr(), ptr::null());
         gl::CompileShader(shader);
+    }
+
+    let mut status = gl::FALSE as i32;
+    unsafe {
         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
-        if status == (gl::TRUE as i32) {
-            Ok(shader)
-        } else {
-            Err(String::from("Error compiling shader"))
-        }
+    }
+
+    if status == (gl::TRUE as i32) {
+        Ok(shader)
+    } else {
+        Err(String::from("Error compiling shader"))
     }
 }
 
 
 fn init_resources() -> Result<u32, String> {
-    let vertex_shader_src = "#version 330\n\
-                             attribute vec2 coord2d; \
-                             void main(void) { \
-                             gl_Position = vec4(coord2d, 0.0, 1.0); \
-                             }";
-
-    let fragment_shader_src = "#version 330\n\
-                               void main(void) { \
-                               gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); \
-                               }";
-
-    let vertex_shader = compile_shader(gl::VERTEX_SHADER, vertex_shader_src)?;
-    let fragment_shader = compile_shader(gl::FRAGMENT_SHADER, fragment_shader_src)?;
+    let vertex_shader = compile_shader(gl::VERTEX_SHADER, "src/shaders/triangle.vert")?;
+    let fragment_shader = compile_shader(gl::FRAGMENT_SHADER, "src/shaders/triangle.frag")?;
 
     let program = unsafe {
         let program = gl::CreateProgram();
@@ -78,37 +125,3 @@ fn render(program: u32) {
 }
 
 
-fn main() {
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
-
-    // Create a windowed mode window and its OpenGL context
-    let (mut window, events) = glfw.create_window(640, 480, "My First Triangle", glfw::WindowMode::Windowed)
-        .expect("Failed to create GLFW window.");
-
-    // Make the window's context current
-    window.make_current();
-
-    // Load the OpenGL function pointers
-    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
-
-    let program = init_resources().expect("Failed to initialize resources.");
-
-    while !window.should_close() {
-        // Swap front and back buffers
-        window.swap_buffers();
-
-        // Poll for and process events
-        glfw.poll_events();
-        for (_, event) in glfw::flush_messages(&events) {
-            match event {
-                glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                    window.set_should_close(true)
-                }
-                _ => {}
-            }
-        }
-
-        render(program);
-    }
-    // Rust's ownership model will handle resource deallocation.
-}
