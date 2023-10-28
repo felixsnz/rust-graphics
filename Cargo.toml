@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 glfw = "0.38"
 gl = "0.14"
+
+[[bin]]
+name = "triangle"
+path = "src/bins/triangle.rs"
