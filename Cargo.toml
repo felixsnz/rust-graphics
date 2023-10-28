@@ -9,6 +9,8 @@ edition = "2021"
 glfw = "0.38"
 gl = "0.14"
 
+
+# Runable .rs files that are examples of rendering certain shapes, animations or graphical behaviors.
 [[bin]]
 name = "triangle"
-path = "src/bins/triangle.rs"
+path = "src/2d-render-examples/triangle.rs"
