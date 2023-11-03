@@ -3,14 +3,13 @@ name = "rust-graphics"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-glfw = "0.38"
-gl = "0.14"
+winit = "0.28"
+env_logger = "0.10"
+log = "0.4"
+wgpu = "0.17"
+pollster = "0.3"
 
-
-# Runable .rs files that are examples of rendering certain shapes, animations or graphical behaviors.
 [[bin]]
-name = "triangle"
-path = "src/2d-render-examples/triangle.rs"
+name = "window"
+path = "src/common-examples/window.rs"
