@@ -220,7 +220,7 @@ impl State {
 
         match event {
 
-            WindowEvent::CursorMoved { device_id, position, modifiers } => {
+            WindowEvent::CursorMoved {position, .. } => {
                 let (width, height) = (self.size.width as f64, self.size.height as f64);
 
             // Normaliza las coordenadas del cursor a un valor entre 0 y 1
@@ -284,7 +284,7 @@ impl State {
                 depth_stencil_attachment: None,
             });
 
-            if (self.toggle_pipeline) {
+            if self.toggle_pipeline {
                 render_pass.set_pipeline(&self.render_pipeline);
             }
             else {
