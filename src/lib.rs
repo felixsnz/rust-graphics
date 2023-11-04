@@ -20,6 +20,9 @@ pub struct State {
     pub window: Window, //shouldnt be public
     bg_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
+    render_pipeline_2: wgpu::RenderPipeline,
+    toggle_pipeline: bool,
+    
 }
 
 impl State {
@@ -143,6 +146,49 @@ impl State {
             multiview: None, // 5.
         });
 
+        let challenge_shader = device.create_shader_module(wgpu::include_wgsl!("shaders/pipeline_challenge.wgsl"));
+
+
+        let render_pipeline_2 = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &challenge_shader,
+                entry_point: "vs_main", // 1.
+                buffers: &[], // 2.
+            },
+            fragment: Some(wgpu::FragmentState { // 3.
+                module: &challenge_shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState { // 4.
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList, // 1.
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw, // 2.
+                cull_mode: Some(wgpu::Face::Back),
+                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                polygon_mode: wgpu::PolygonMode::Fill,
+                // Requires Features::DEPTH_CLIP_CONTROL
+                unclipped_depth: false,
+                // Requires Features::CONSERVATIVE_RASTERIZATION
+                conservative: false,
+            },
+            depth_stencil: None, // 1.
+            multisample: wgpu::MultisampleState {
+                count: 1, // 2.
+                mask: !0, // 3.
+                alpha_to_coverage_enabled: false, // 4.
+            },
+            multiview: None, // 5.
+        });
+
+        let toggle_pipeline = true;
+
         Self {
             surface,
             device,
@@ -152,6 +198,8 @@ impl State {
             window,
             bg_color,
             render_pipeline,
+            render_pipeline_2,
+            toggle_pipeline,
         }
     }
 
@@ -189,7 +237,21 @@ impl State {
                 a: 1.0, // El canal alfa se mantiene constante
             };
             true
-            }
+            },
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::Space),
+                        ..
+                    },
+                ..
+            } => {
+
+                self.toggle_pipeline = !self.toggle_pipeline;
+                true
+
+            },
 
             _ => {
                 false
@@ -221,7 +283,14 @@ impl State {
                 })],
                 depth_stencil_attachment: None,
             });
-            render_pass.set_pipeline(&self.render_pipeline); // 2.
+
+            if (self.toggle_pipeline) {
+                render_pass.set_pipeline(&self.render_pipeline);
+            }
+            else {
+                render_pass.set_pipeline(&self.render_pipeline_2);
+            }
+             // 2.
             render_pass.draw(0..3, 0..1); // 3.
         }
 
