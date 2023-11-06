@@ -5,7 +5,9 @@ use winit::{
     window::  Window,
 };
 
-use crate::render::pipelines::TrianglePipeline;
+use crate::render::pipelines::polygon::{Vertex, PolygonPipeline};
+
+
 
 pub struct State {
     surface: wgpu::Surface,
@@ -22,6 +24,7 @@ pub struct State {
     render_pipeline: wgpu::RenderPipeline,
     render_pipeline_2: wgpu::RenderPipeline,
     toggle_pipeline: bool,
+    vertex_buffer: wgpu::Buffer,
     
 }
  
@@ -108,13 +111,29 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 
-        let render_pipeline = TrianglePipeline::new(&device, &shader, &config);
+        let triangle_pipeline: PolygonPipeline = PolygonPipeline::new(&[
+            Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
+            Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
+            Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },],
+            &device,
+            &shader,
+            &config
+        );
 
         let challenge_shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/pipeline_challenge.wgsl"));
 
-        let render_pipeline_2 = TrianglePipeline::new(&device, &challenge_shader, &config);
+        let render_pipeline_2 = PolygonPipeline::new(&[
+            Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
+            Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
+            Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },],
+            &device,
+            &challenge_shader,
+            &config
+        );
 
         let toggle_pipeline = true;
+
+        
 
         Self {
             surface,
@@ -124,9 +143,10 @@ impl State {
             size,
             window,
             bg_color,
-            render_pipeline,
-            render_pipeline_2,
+            render_pipeline:triangle_pipeline.pipeline,
+            render_pipeline_2: render_pipeline_2.pipeline,
             toggle_pipeline,
+            vertex_buffer: triangle_pipeline.vertex_buffer
         }
     }
 
