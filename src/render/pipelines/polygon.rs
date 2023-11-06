@@ -1,27 +1,36 @@
+use wgpu::util::DeviceExt;
 
-
-pub struct TrianglePipeline {
-
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
 }
 
-impl TrianglePipeline {
+pub struct PolygonPipeline {
+    pub pipeline: wgpu::RenderPipeline,
+    pub vertex_buffer: wgpu::Buffer
+}
+
+impl PolygonPipeline {
     pub fn new(
+        vertices: &[Vertex],
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         config: &wgpu::SurfaceConfiguration,
-    ) -> wgpu::RenderPipeline {
+    ) -> Self {
 
 
-        let render_pipeline_layout =
+        let pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Triangle Pipeline Layout"),
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Triangle Pipeline"),
-            layout: Some(&render_pipeline_layout),
+            layout: Some(&pipeline_layout),
             primitive: wgpu::PrimitiveState { 
                 topology: wgpu::PrimitiveTopology::TriangleList, // 1.
                 strip_index_format: None,
@@ -56,6 +65,17 @@ impl TrianglePipeline {
             },
             multiview: None, // 5.
         });
-        render_pipeline
+
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+        Self {
+            pipeline,
+            vertex_buffer
+        }
     }
 }

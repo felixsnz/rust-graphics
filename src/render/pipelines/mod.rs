@@ -1,2 +1,1 @@
-mod triangle;
-pub use triangle::TrianglePipeline;
+pub mod polygon;
