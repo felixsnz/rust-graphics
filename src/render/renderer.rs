@@ -112,7 +112,6 @@ impl State {
 
         let challenge_shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/pipeline_challenge.wgsl"));
 
-
         let render_pipeline_2 = TrianglePipeline::new(&device, &challenge_shader, &config);
 
         let toggle_pipeline = true;
