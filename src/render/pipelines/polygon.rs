@@ -7,9 +7,25 @@ pub struct Vertex {
     pub color: [f32; 3],
 }
 
+impl Vertex {
+
+    const ATTRIBS: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+
+
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRIBS,
+
+        }
+    }
+}
+
 pub struct PolygonPipeline {
     pub pipeline: wgpu::RenderPipeline,
-    pub vertex_buffer: wgpu::Buffer
+    pub vertex_buffer: wgpu::Buffer,
 }
 
 impl PolygonPipeline {
@@ -19,6 +35,14 @@ impl PolygonPipeline {
         shader: &wgpu::ShaderModule,
         config: &wgpu::SurfaceConfiguration,
     ) -> Self {
+
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
 
 
         let pipeline_layout =
@@ -46,7 +70,9 @@ impl PolygonPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main", // 1.
-                buffers: &[], // 2.
+                buffers: &[
+                    Vertex::desc()
+                ], // 2.
             },
             fragment: Some(wgpu::FragmentState { // 3.
                 module: &shader,
@@ -66,16 +92,10 @@ impl PolygonPipeline {
             multiview: None, // 5.
         });
 
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        
         Self {
             pipeline,
-            vertex_buffer
+            vertex_buffer,
         }
     }
 }
