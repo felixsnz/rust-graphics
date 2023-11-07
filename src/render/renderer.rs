@@ -20,10 +20,7 @@ pub struct State {
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     pub window: Window, 
-    bg_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
-    render_pipeline_2: wgpu::RenderPipeline,
-    toggle_pipeline: bool,
     vertex_buffer: wgpu::Buffer,
     
 }
@@ -33,14 +30,6 @@ impl State {
     // Creating some of the wgpu types requires async code
     pub async fn new(window: Window) -> Self {
         let size = window.inner_size();
-
-
-        let bg_color = wgpu::Color {
-            r: 0.3,
-            g: 0.2,
-            b: 0.3,
-            a: 1.0,
-        };
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -120,20 +109,6 @@ impl State {
             &config
         );
 
-        let challenge_shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/pipeline_challenge.wgsl"));
-
-        let render_pipeline_2 = PolygonPipeline::new(&[
-            Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-            Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
-            Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },],
-            &device,
-            &challenge_shader,
-            &config
-        );
-
-        let toggle_pipeline = true;
-
-        
 
         Self {
             surface,
@@ -142,10 +117,7 @@ impl State {
             config,
             size,
             window,
-            bg_color,
             render_pipeline:triangle_pipeline.pipeline,
-            render_pipeline_2: render_pipeline_2.pipeline,
-            toggle_pipeline,
             vertex_buffer: triangle_pipeline.vertex_buffer
         }
     }
@@ -165,46 +137,8 @@ impl State {
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
 
-        match event {
-
-            WindowEvent::CursorMoved {position, .. } => {
-                let (width, height) = (self.size.width as f64, self.size.height as f64);
-
-            // Normaliza las coordenadas del cursor a un valor entre 0 y 1
-            let normalized_x = position.x / width;
-            let normalized_y = position.y / height;
-            let combined_xy = (position.x * position.y) / (width * height);
-
-            // Asigna los valores normalizados a los canales de color
-            // Asegúrate de que los valores estén entre 0 y 1 para que sean válidos para wgpu::Color
-            self.bg_color = wgpu::Color {
-                r: normalized_x.min(1.0).max(0.0),
-                g: normalized_y.min(1.0).max(0.0),
-                b: combined_xy.min(1.0).max(0.0),
-                a: 1.0, // El canal alfa se mantiene constante
-            };
-            true
-            },
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state: ElementState::Pressed,
-                        virtual_keycode: Some(VirtualKeyCode::Space),
-                        ..
-                    },
-                ..
-            } => {
-
-                self.toggle_pipeline = !self.toggle_pipeline;
-                true
-
-            },
-
-            _ => {
-                false
-            }
-
-        }
+        //so far this was used for exercices or experimenting with the code
+        true
     }
 
     pub fn update(&mut self) {
@@ -224,25 +158,25 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.bg_color),
+                        load: wgpu::LoadOp::Clear(wgpu::Color { 
+                            r: 0.5,
+                            g: 0.5,
+                            b: 1.0,
+                            a: 1.0
+                        }),
                         store: true,
                     },
                 })],
                 depth_stencil_attachment: None,
             });
 
-            if self.toggle_pipeline {
-                render_pass.set_pipeline(&self.render_pipeline);
-            }
-            else {
-                render_pass.set_pipeline(&self.render_pipeline_2);
-            }
-             // 2.
-            render_pass.draw(0..3, 0..1); // 3.
-        }
 
-        
-    
+            render_pass.set_pipeline(&self.render_pipeline);
+
+
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..3, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
+        }
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
