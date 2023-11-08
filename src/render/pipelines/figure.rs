@@ -23,12 +23,13 @@ impl Vertex {
     }
 }
 
-pub struct PolygonPipeline {
+pub struct FigurePipeline {
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
+    pub vertices_length: u32,
 }
 
-impl PolygonPipeline {
+impl FigurePipeline {
     pub fn new(
         vertices: &[Vertex],
         device: &wgpu::Device,
@@ -47,13 +48,13 @@ impl PolygonPipeline {
 
         let pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Triangle Pipeline Layout"),
+            label: Some("Render Figure Pipeline Layout"),
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Triangle Pipeline"),
+            label: Some("Render Figure Pipeline"),
             layout: Some(&pipeline_layout),
             primitive: wgpu::PrimitiveState { 
                 topology: wgpu::PrimitiveTopology::TriangleList, // 1.
@@ -96,6 +97,7 @@ impl PolygonPipeline {
         Self {
             pipeline,
             vertex_buffer,
+            vertices_length: vertices.len() as u32
         }
     }
 }
