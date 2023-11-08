@@ -5,29 +5,27 @@ use winit::{
     window::  Window,
 };
 
-use crate::render::pipelines::polygon::{Vertex, PolygonPipeline};
+use crate::render::pipelines::figure::{Vertex, FigurePipeline};
 
 
 
+/// State gestiona los recursos de renderizado de la aplicación,
+/// actualmente para un triángulo. Con la expansión del proyecto,
+/// se podría renombrar a Renderer y crear un GlobalState para un
+/// alcance más amplio.
 pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    
-    // The window must be declared after the surface so
-    // it gets dropped after it as the surface contains
-    // unsafe references to the window's resources.
     pub window: Window, 
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
+    render_pipeline: FigurePipeline,
     
 }
  
 
 impl State {
-    // Creating some of the wgpu types requires async code
     pub async fn new(window: Window) -> Self {
         let size = window.inner_size();
 
@@ -39,7 +37,6 @@ impl State {
         });
 
         // # Safety
-        //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
         let surface = unsafe { wgpu_instance.create_surface(&window) }.unwrap();
@@ -58,15 +55,8 @@ impl State {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
+                    limits: wgpu::Limits::default(),
                 },
-                // Some(&std::path::Path::new("trace")), // Trace path
                 None,
             )
             .await
@@ -83,12 +73,8 @@ impl State {
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
 
-
-        
-
-
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,//investigar cual es la diferencia entre esto y usar surface_caps.usages
             format: surface_format,
             width: size.width,
             height: size.height,
@@ -100,10 +86,23 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 
-        let triangle_pipeline: PolygonPipeline = PolygonPipeline::new(&[
-            Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-            Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
-            Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },],
+        const VERTICES: &[Vertex] = &[
+            Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.0, 0.5, 0.5] }, // A
+            Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
+            Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.0] }, // C
+            Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.5, 0.5] }, // D
+            Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.0, 0.0, 0.5] }, // E
+        ];
+
+        const INDICES: &[u16] = &[
+            0, 1, 4,
+            1, 2, 4,
+            2, 3, 4,
+        ];
+
+        let triangle_pipeline: FigurePipeline = FigurePipeline::new(
+            VERTICES,
+            INDICES,
             &device,
             &shader,
             &config
@@ -117,8 +116,7 @@ impl State {
             config,
             size,
             window,
-            render_pipeline:triangle_pipeline.pipeline,
-            vertex_buffer: triangle_pipeline.vertex_buffer
+            render_pipeline:triangle_pipeline,
         }
     }
 
@@ -135,10 +133,10 @@ impl State {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &WindowEvent) -> bool {
 
         //so far this was used for exercices or experimenting with the code
-        true
+        false
     }
 
     pub fn update(&mut self) {
@@ -150,7 +148,6 @@ impl State {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
-
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -169,21 +166,14 @@ impl State {
                 })],
                 depth_stencil_attachment: None,
             });
-
-
-            render_pass.set_pipeline(&self.render_pipeline);
-
-
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..3, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
+            render_pass.set_pipeline(&self.render_pipeline.pipeline);
+            render_pass.set_vertex_buffer(0, self.render_pipeline.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.render_pipeline.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.render_pipeline.num_indices, 0, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
         }
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
-    
         Ok(())
     }
-    
-    
-
 }

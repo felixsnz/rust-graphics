@@ -26,12 +26,14 @@ impl Vertex {
 pub struct FigurePipeline {
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
-    pub vertices_length: u32,
+    pub index_buffer: wgpu::Buffer,
+    pub num_indices: u32,
 }
 
 impl FigurePipeline {
     pub fn new(
         vertices: &[Vertex],
+        indices: &[u16],
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         config: &wgpu::SurfaceConfiguration,
@@ -42,6 +44,14 @@ impl FigurePipeline {
                 label: Some("Vertex Buffer"),
                 contents: bytemuck::cast_slice(vertices),
                 usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+
+        let index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(indices),
+                usage: wgpu::BufferUsages::INDEX,
             }
         );
 
@@ -97,7 +107,8 @@ impl FigurePipeline {
         Self {
             pipeline,
             vertex_buffer,
-            vertices_length: vertices.len() as u32
+            index_buffer,
+            num_indices: indices.len() as u32,
         }
     }
 }
