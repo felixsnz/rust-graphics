@@ -19,8 +19,10 @@ pub struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pub window: Window, 
+    pub window: Window,
+    toggle_pipeline: bool, 
     render_pipeline: FigurePipeline,
+    render_pipeline2:FigurePipeline,
     
 }
  
@@ -86,7 +88,7 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 
-        const VERTICES: &[Vertex] = &[
+        const PENTAGON_VERTICES: &[Vertex] = &[
             Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.0, 0.5, 0.5] }, // A
             Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
             Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.0] }, // C
@@ -94,15 +96,43 @@ impl State {
             Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.0, 0.0, 0.5] }, // E
         ];
 
-        const INDICES: &[u16] = &[
+        const PENTAGON_INDICES: &[u16] = &[
             0, 1, 4,
             1, 2, 4,
             2, 3, 4,
         ];
 
-        let triangle_pipeline: FigurePipeline = FigurePipeline::new(
-            VERTICES,
-            INDICES,
+        let pentagon_pipeline: FigurePipeline = FigurePipeline::new(
+            PENTAGON_VERTICES,
+            PENTAGON_INDICES,
+            &device,
+            &shader,
+            &config
+        );
+
+        const OCTAGON_VERTICES: &[Vertex] = &[
+            Vertex { position: [0.0, 0.5, 0.0], color: [0.0, 0.5, 0.5] }, // A
+            Vertex { position: [-0.3536, 0.3536, 0.0], color: [0.5, 0.0, 0.5] }, // B
+            Vertex { position: [-0.5, 0.0, 0.0], color: [0.5, 0.0, 0.0] }, // C
+            Vertex { position: [-0.3536, -0.3536, 0.0], color: [0.5, 0.5, 0.5] }, // D
+            Vertex { position: [0.0, -0.5, 0.0], color: [0.0, 0.0, 0.5] }, // E
+            Vertex { position: [0.3536, -0.3536, 0.0], color: [0.0, 0.5, 0.0] }, // F
+            Vertex { position: [0.5, 0.0, 0.0], color: [0.5, 0.0, 0.0] }, // G
+            Vertex { position: [0.3536, 0.3536, 0.0], color: [0.0, 0.0, 0.5] }, // H
+        ];
+
+        const OCTAGON_INDICES: &[u16] = &[
+            0, 1, 7,
+            1, 2, 3,
+            1, 3, 7,
+            3, 4, 5,
+            3, 5, 7,
+            5, 6, 7,
+        ];
+
+        let complex_pipeline: FigurePipeline = FigurePipeline::new(
+            OCTAGON_VERTICES,
+            OCTAGON_INDICES,
             &device,
             &shader,
             &config
@@ -116,7 +146,9 @@ impl State {
             config,
             size,
             window,
-            render_pipeline:triangle_pipeline,
+            toggle_pipeline:true,
+            render_pipeline:pentagon_pipeline,
+            render_pipeline2:complex_pipeline,
         }
     }
 
@@ -133,10 +165,23 @@ impl State {
         }
     }
 
-    pub fn input(&mut self, _event: &WindowEvent) -> bool {
+    pub fn input(&mut self, event: &WindowEvent) -> bool {
 
-        //so far this was used for exercices or experimenting with the code
-        false
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                KeyboardInput {
+                    state,
+                    virtual_keycode: Some(VirtualKeyCode::Space),
+                    ..
+                },
+                ..
+            } => {
+                self.toggle_pipeline = *state == ElementState::Pressed;
+                true
+            }
+            _ => false
+        }
     }
 
     pub fn update(&mut self) {
@@ -166,10 +211,23 @@ impl State {
                 })],
                 depth_stencil_attachment: None,
             });
-            render_pass.set_pipeline(&self.render_pipeline.pipeline);
-            render_pass.set_vertex_buffer(0, self.render_pipeline.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.render_pipeline.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.render_pipeline.num_indices, 0, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
+
+            let selected_pipeline;
+
+            if self.toggle_pipeline {
+                selected_pipeline = &self.render_pipeline;
+            }
+            else {
+                selected_pipeline = &self.render_pipeline2;
+            }
+
+
+
+
+            render_pass.set_pipeline(&selected_pipeline.pipeline);
+            render_pass.set_vertex_buffer(0, selected_pipeline.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(selected_pipeline.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..selected_pipeline.num_indices, 0, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
         }
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
