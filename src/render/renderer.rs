@@ -28,7 +28,7 @@ pub struct State {
     render_pipeline: FigurePipeline,
     render_pipeline2:FigurePipeline,
     diffuse_bind_group: wgpu::BindGroup,
-    difuse_texture: texture::Texture, //for later usage
+    diffuse_texture: texture::Texture, //for later usage
     
 }
  
@@ -184,7 +184,7 @@ impl State {
             render_pipeline:pentagon_pipeline,
             render_pipeline2:complex_pipeline,
             diffuse_bind_group,
-            difuse_texture
+            diffuse_texture,
         }
     }
 
