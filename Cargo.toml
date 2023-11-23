@@ -11,6 +11,8 @@ wgpu = "0.17"
 pollster = "0.3"
 bytemuck = { version = "1.14", features = [ "derive" ] }
 
-[[bin]]
-name = "window"
-path = "src/common-examples/window.rs"
+[dependencies.image]
+version = "0.24"
+default-features = false
+features = ["png", "jpeg"]
+ 
