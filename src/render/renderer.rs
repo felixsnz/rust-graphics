@@ -30,9 +30,7 @@ pub struct State {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
-    toggle_pipeline: bool, 
-    quad_mesh: Mesh<Vertex>,
-    
+    toggle_pipeline: bool,     
 
     quad_pipeline:FigurePipeline,
     quad_model: Model<Vertex>,
@@ -133,7 +131,7 @@ impl State {
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 
         let mut quad_mesh = Mesh::new();
-        
+
         quad_mesh.push_quad(Quad::new(
             Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], },
             Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], },
@@ -141,15 +139,14 @@ impl State {
             Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }
         ));
 
+        let quad_model = Model::new(&device, &quad_mesh).unwrap();
+
         let quad_pipeline: FigurePipeline = FigurePipeline::new(
             &device,
             &shader,
             &config,
             &figure_bind_group_layout
         );
-
-        let quad_model = Model::new(&device, &quad_mesh).unwrap();
-
 
         Self {
             surface,
@@ -160,11 +157,9 @@ impl State {
             window,
             toggle_pipeline:true,
             quad_pipeline,
-            quad_mesh,
             quad_model,
             diffuse_bind_group,
             diffuse_texture,
-            
         }
     }
 
@@ -194,7 +189,6 @@ impl State {
                 ..
             } => {
                 self.toggle_pipeline = *state == ElementState::Pressed;
-                println!("ejecutando");
                 true
             }
             _ => false
@@ -230,31 +224,13 @@ impl State {
                 depth_stencil_attachment: None,
             });
 
-
-
-
-            println!("Vertices:");
-                for vertex in self.quad_mesh.iter_verts() {
-                    println!("{:?}", vertex);
-                }
-
-
-                println!("Indices:");
-                for index in self.quad_mesh.iter_indices() {
-                    println!("{:?}", index);
-                }
-                
-
-
             render_pass.set_pipeline(&self.quad_pipeline.pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
             render_pass.set_index_buffer(self.quad_model.ibuf().slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..1);
-            //render_pass.draw(0..selected_model.len(), 0..1);
-            // render_pass.set_index_buffer(selected_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            // render_pass.draw_indexed(0..selected_mesh.num_indices, 0, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
         }
+
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

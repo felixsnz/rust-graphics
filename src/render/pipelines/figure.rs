@@ -1,5 +1,5 @@
 
-use super::super::{Vertex as VertexTrait, buffer::Buffer, mesh::Mesh};
+use super::super::Vertex as VertexTrait;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -28,64 +28,6 @@ impl VertexTrait for Vertex {
     const QUADS_INDEX: Option<wgpu::IndexFormat> = Some(wgpu::IndexFormat::Uint16);
     const STRIDE: wgpu::BufferAddress = std::mem::size_of::<Self>() as wgpu::BufferAddress;
 }
-
-// pub struct FigureVerts(Buffer<Vertex>);
-// //pub struct SpriteVerts(Texture);
-
-// pub(in super::super) fn create_verts_buffer(
-//     device: &wgpu::Device,
-//     mesh: Mesh<Vertex>,
-// ) -> FigureVerts {
-//     // TODO: type Buffer by wgpu::BufferUsage
-//     FigureVerts(Buffer::new(
-//         device,
-//         wgpu::BufferUsages::VERTEX,
-//         mesh.vertices(),
-//     ))
-// }
-
-
-
-
-
-
-pub struct FigureVerts {
-    pub vertex_buffer: Buffer<Vertex>,
-    pub num_vertices: u32,
-    // Si estás usando indexado, también incluye:
-    // pub index_buffer: wgpu::Buffer,
-    // pub num_indices: u32,
-}
-
-pub(in super::super) fn create_verts_buffer(
-    device: &wgpu::Device,
-    mesh: Mesh<Vertex>,
-) -> FigureVerts {
-    let vertex_buffer = Buffer::new(
-        device,
-        wgpu::BufferUsages::VERTEX,
-        mesh.vertices(),
-    );
-
-    let num_vertices = mesh.vertices().len() as u32;
-
-    // Si estás usando indexado, crea el index_buffer aquí
-
-    FigureVerts {
-        vertex_buffer,
-        num_vertices,
-        // Si estás usando indexado, también asigna index_buffer y num_indices
-    }
-}
-
-
-
-
-
-
-
-
-
 pub struct FigureLayout {
     pub layout: wgpu::BindGroupLayout,
 }
@@ -115,7 +57,7 @@ impl FigureLayout {
                         count: None,
                     },
                 ],
-                label: Some("texture_bind_group_layout"),
+                label: Some("figure_bind_group_layout"),
             }),
         }
     }
@@ -123,37 +65,15 @@ impl FigureLayout {
 
 pub struct FigurePipeline {
     pub pipeline: wgpu::RenderPipeline,
-    // pub vertex_buffer: wgpu::Buffer,
-    // pub index_buffer: wgpu::Buffer,
-    // pub num_indices: u32,
 }
 
 impl FigurePipeline {
     pub fn new(
-        // vertices: &[Vertex],
-        // indices: &[u16],
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         config: &wgpu::SurfaceConfiguration,
         layout: &FigureLayout
     ) -> Self {
-
-        // let vertex_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: Some("Vertex Buffer"),
-        //         contents: bytemuck::cast_slice(vertices),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     }
-        // );
-
-        // let index_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: Some("Index Buffer"),
-        //         contents: bytemuck::cast_slice(indices),
-        //         usage: wgpu::BufferUsages::INDEX,
-        //     }
-        // );
-
 
         let pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -178,14 +98,14 @@ impl FigurePipeline {
                 conservative: false,
             },
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: shader,
                 entry_point: "vs_main", // 1.
                 buffers: &[
                     Vertex::desc()
                 ], // 2.
             },
             fragment: Some(wgpu::FragmentState { // 3.
-                module: &shader,
+                module: shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState { // 4.
                     format: config.format,
@@ -205,9 +125,6 @@ impl FigurePipeline {
         
         Self {
             pipeline,
-            // vertex_buffer,
-            // index_buffer,
-            // num_indices: indices.len() as u32,
         }
     }
 }
