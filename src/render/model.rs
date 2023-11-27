@@ -7,7 +7,6 @@ use super::{
 pub struct Model<V: Vertex> {
     vbuf: Buffer<V>,
     ibuf: Buffer<u16>,
-    pub num_vertices: u32,
     pub num_indices: u32,
 }
 
@@ -23,7 +22,6 @@ impl<V: Vertex> Model<V> {
         Some(Self {
             vbuf,
             ibuf,
-            num_vertices: mesh.vertices().len() as u32,
             num_indices: mesh.indices().len() as u32,
         })
     }
