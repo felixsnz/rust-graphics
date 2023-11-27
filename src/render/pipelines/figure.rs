@@ -1,4 +1,5 @@
-use wgpu::util::DeviceExt;
+
+use super::super::{Vertex as VertexTrait, buffer::Buffer, mesh::Mesh};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -15,13 +16,74 @@ impl Vertex {
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
 
         }
     }
 }
+
+impl VertexTrait for Vertex {
+    const QUADS_INDEX: Option<wgpu::IndexFormat> = Some(wgpu::IndexFormat::Uint16);
+    const STRIDE: wgpu::BufferAddress = std::mem::size_of::<Self>() as wgpu::BufferAddress;
+}
+
+// pub struct FigureVerts(Buffer<Vertex>);
+// //pub struct SpriteVerts(Texture);
+
+// pub(in super::super) fn create_verts_buffer(
+//     device: &wgpu::Device,
+//     mesh: Mesh<Vertex>,
+// ) -> FigureVerts {
+//     // TODO: type Buffer by wgpu::BufferUsage
+//     FigureVerts(Buffer::new(
+//         device,
+//         wgpu::BufferUsages::VERTEX,
+//         mesh.vertices(),
+//     ))
+// }
+
+
+
+
+
+
+pub struct FigureVerts {
+    pub vertex_buffer: Buffer<Vertex>,
+    pub num_vertices: u32,
+    // Si estás usando indexado, también incluye:
+    // pub index_buffer: wgpu::Buffer,
+    // pub num_indices: u32,
+}
+
+pub(in super::super) fn create_verts_buffer(
+    device: &wgpu::Device,
+    mesh: Mesh<Vertex>,
+) -> FigureVerts {
+    let vertex_buffer = Buffer::new(
+        device,
+        wgpu::BufferUsages::VERTEX,
+        mesh.vertices(),
+    );
+
+    let num_vertices = mesh.vertices().len() as u32;
+
+    // Si estás usando indexado, crea el index_buffer aquí
+
+    FigureVerts {
+        vertex_buffer,
+        num_vertices,
+        // Si estás usando indexado, también asigna index_buffer y num_indices
+    }
+}
+
+
+
+
+
+
+
 
 
 pub struct FigureLayout {
@@ -61,36 +123,36 @@ impl FigureLayout {
 
 pub struct FigurePipeline {
     pub pipeline: wgpu::RenderPipeline,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub num_indices: u32,
+    // pub vertex_buffer: wgpu::Buffer,
+    // pub index_buffer: wgpu::Buffer,
+    // pub num_indices: u32,
 }
 
 impl FigurePipeline {
     pub fn new(
-        vertices: &[Vertex],
-        indices: &[u16],
+        // vertices: &[Vertex],
+        // indices: &[u16],
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         config: &wgpu::SurfaceConfiguration,
         layout: &FigureLayout
     ) -> Self {
 
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        // let vertex_buffer = device.create_buffer_init(
+        //     &wgpu::util::BufferInitDescriptor {
+        //         label: Some("Vertex Buffer"),
+        //         contents: bytemuck::cast_slice(vertices),
+        //         usage: wgpu::BufferUsages::VERTEX,
+        //     }
+        // );
 
-        let index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(indices),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        );
+        // let index_buffer = device.create_buffer_init(
+        //     &wgpu::util::BufferInitDescriptor {
+        //         label: Some("Index Buffer"),
+        //         contents: bytemuck::cast_slice(indices),
+        //         usage: wgpu::BufferUsages::INDEX,
+        //     }
+        // );
 
 
         let pipeline_layout =
@@ -143,9 +205,9 @@ impl FigurePipeline {
         
         Self {
             pipeline,
-            vertex_buffer,
-            index_buffer,
-            num_indices: indices.len() as u32,
+            // vertex_buffer,
+            // index_buffer,
+            // num_indices: indices.len() as u32,
         }
     }
 }

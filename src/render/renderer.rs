@@ -7,8 +7,14 @@ use winit::{
 
 use crate::render::{
     pipelines::figure::{Vertex, FigurePipeline, FigureLayout},
-    texture
+    texture::Texture,
+    mesh::{Mesh, Tri, Quad},
+    model::Model
+    
 };
+
+use super::model;
+
 
 
 
@@ -25,10 +31,16 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
     toggle_pipeline: bool, 
-    render_pipeline: FigurePipeline,
-    render_pipeline2:FigurePipeline,
+    quad_mesh: Mesh<Vertex>,
+    
+
+    quad_pipeline:FigurePipeline,
+    quad_model: Model<Vertex>,
+
     diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture, //for later usage
+
+
+    diffuse_texture: Texture, //for later usage
     
 }
  
@@ -95,7 +107,7 @@ impl State {
 
         let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
 
-        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+        let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
 
 
         let figure_bind_group_layout = FigureLayout::new(&device);
@@ -120,57 +132,23 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 
-        const PENTAGON_VERTICES: &[Vertex] = &[
-            // Changed
-            Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
-            Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
-            Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
-            Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
-            Vertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
-        ];
+        let mut quad_mesh = Mesh::new();
+        
+        quad_mesh.push_quad(Quad::new(
+            Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], },
+            Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], },
+            Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], },
+            Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }
+        ));
 
-        const PENTAGON_INDICES: &[u16] = &[
-            0, 1, 4,
-            1, 2, 4,
-            2, 3, 4,
-        ];
-
-        let pentagon_pipeline: FigurePipeline = FigurePipeline::new(
-            PENTAGON_VERTICES,
-            PENTAGON_INDICES,
+        let quad_pipeline: FigurePipeline = FigurePipeline::new(
             &device,
             &shader,
             &config,
             &figure_bind_group_layout
         );
 
-        const OCTAGON_VERTICES: &[Vertex] = &[
-            // Changed
-            Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
-            Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
-            Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
-            Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
-            Vertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
-        ];
-
-        const OCTAGON_INDICES: &[u16] = &[
-            0, 1, 7,
-            1, 2, 3,
-            1, 3, 7,
-            3, 4, 5,
-            3, 5, 7,
-            5, 6, 7,
-        ];
-
-        let complex_pipeline: FigurePipeline = FigurePipeline::new(
-            OCTAGON_VERTICES,
-            OCTAGON_INDICES,
-            &device,
-            &shader,
-            &config,
-            &figure_bind_group_layout,
-
-        );
+        let quad_model = Model::new(&device, &quad_mesh).unwrap();
 
 
         Self {
@@ -181,10 +159,12 @@ impl State {
             size,
             window,
             toggle_pipeline:true,
-            render_pipeline:pentagon_pipeline,
-            render_pipeline2:complex_pipeline,
+            quad_pipeline,
+            quad_mesh,
+            quad_model,
             diffuse_bind_group,
             diffuse_texture,
+            
         }
     }
 
@@ -214,6 +194,7 @@ impl State {
                 ..
             } => {
                 self.toggle_pipeline = *state == ElementState::Pressed;
+                println!("ejecutando");
                 true
             }
             _ => false
@@ -249,25 +230,30 @@ impl State {
                 depth_stencil_attachment: None,
             });
 
-            let selected_pipeline;
-
-            if self.toggle_pipeline {
-                selected_pipeline = &self.render_pipeline;
-            }
-            else {
-                selected_pipeline = &self.render_pipeline2;
-            }
-
-            
 
 
 
+            println!("Vertices:");
+                for vertex in self.quad_mesh.iter_verts() {
+                    println!("{:?}", vertex);
+                }
 
-            render_pass.set_pipeline(&selected_pipeline.pipeline);
+
+                println!("Indices:");
+                for index in self.quad_mesh.iter_indices() {
+                    println!("{:?}", index);
+                }
+                
+
+
+            render_pass.set_pipeline(&self.quad_pipeline.pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, selected_pipeline.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(selected_pipeline.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..selected_pipeline.num_indices, 0, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
+            render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
+            render_pass.set_index_buffer(self.quad_model.ibuf().slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..1);
+            //render_pass.draw(0..selected_model.len(), 0..1);
+            // render_pass.set_index_buffer(selected_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            // render_pass.draw_indexed(0..selected_mesh.num_indices, 0, 0..1); // pendiente crear una forma para determinar automaticamente los vertices (sin agregar los vertices al state)
         }
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
