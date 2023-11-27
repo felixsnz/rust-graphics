@@ -34,9 +34,16 @@ impl<V: Vertex> Mesh<V> {
 
     /// Push a new polygon onto the end of this mesh.
     pub fn push_tri(&mut self, tri: Tri<V>) {
+
+        let start_index = self.verts.len() as u16;
         self.verts.push(tri.a);
         self.verts.push(tri.b);
         self.verts.push(tri.c);
+
+        self.indices.push(start_index);
+        self.indices.push(start_index + 1);
+        self.indices.push(start_index + 2);
+
     }
 
     /// Push a new quad onto the end of this mesh.
