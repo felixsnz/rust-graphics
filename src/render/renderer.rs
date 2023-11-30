@@ -1,5 +1,3 @@
-// lib.rs
-
 use winit::{
     event::*,
     window::  Window,
@@ -8,16 +6,10 @@ use winit::{
 use crate::render::{
     pipelines::figure::{Vertex, FigurePipeline, FigureLayout},
     texture::Texture,
-    mesh::{Mesh, Tri, Quad},
+    mesh::{Mesh, Quad},
     model::Model
     
 };
-
-use super::model;
-
-
-
-
 
 /// State gestiona los recursos de renderizado de la aplicación,
 /// actualmente para un triángulo. Con la expansión del proyecto,
@@ -31,18 +23,13 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
     toggle_pipeline: bool,     
-
     quad_pipeline:FigurePipeline,
     quad_model: Model<Vertex>,
-
     diffuse_bind_group: wgpu::BindGroup,
-
-
     diffuse_texture: Texture, //for later usage
     
 }
  
-
 impl State {
     pub async fn new(window: Window) -> Self {
         let size = window.inner_size();
@@ -102,31 +89,27 @@ impl State {
         };
         surface.configure(&device, &config);
 
-
         let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
-
         let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
 
         let figure_bind_group_layout = FigureLayout::new(&device);
 
-
-            let diffuse_bind_group = device.create_bind_group(
-                &wgpu::BindGroupDescriptor {
-                    layout: &figure_bind_group_layout.layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                        },
-                        wgpu::BindGroupEntry {
-                            binding: 1,
-                            resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                        }
-                    ],
-                    label: Some("diffuse_bind_group"),
-                }
-            );
+        let diffuse_bind_group = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &figure_bind_group_layout.layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                    }
+                ],
+                label: Some("diffuse_bind_group"),
+            }
+        );
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 

@@ -1,6 +1,8 @@
 use super::Vertex;
 
 #[derive(Clone)]
+
+/// Represents a vec-based mesh on the CPU
 pub struct Mesh<V: Vertex> {
     verts: Vec<V>,
     indices: Vec<u16>
@@ -18,12 +20,12 @@ impl<V: Vertex> Mesh<V> {
 
     pub fn push(&mut self, vert: V) { self.verts.push(vert); }
 
-    // Nuevo método para agregar índices
+    // new method to add indices
     pub fn push_indices(&mut self, indices: &[u16]) {
         self.indices.extend_from_slice(indices);
     }
 
-    // Método para obtener una referencia a los índices
+    // returns the indices
     pub fn indices(&self) -> &[u16] {
         &self.indices
     }
@@ -58,16 +60,15 @@ impl<V: Vertex> Mesh<V> {
         self.verts.push(quad.d);
 
 
-        // Añadir índices para los dos triángulos del quad
-        // Triángulo 1: a, b, c
-        self.indices.push(start_index);     // Índice de a
-        self.indices.push(start_index + 1); // Índice de b
-        self.indices.push(start_index + 2); // Índice de c
+        // triange 1
+        self.indices.push(start_index);     // a
+        self.indices.push(start_index + 1); // b
+        self.indices.push(start_index + 2); // c
 
-        // Triángulo 2: a, c, d
-        self.indices.push(start_index + 2);     // Índice de a
-        self.indices.push(start_index + 3); // Índice de c
-        self.indices.push(start_index ); // Índice de d
+        // triangle 2
+        self.indices.push(start_index + 2); // a
+        self.indices.push(start_index + 3); // c
+        self.indices.push(start_index );    // d
     
     }
 }
