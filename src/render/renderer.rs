@@ -11,11 +11,14 @@ use crate::render::{
     
 };
 
+use crate::scene::camera::Camera;
+
 /// State gestiona los recursos de renderizado de la aplicación,
 /// actualmente para un triángulo. Con la expansión del proyecto,
 /// se podría renombrar a Renderer y crear un GlobalState para un
 /// alcance más amplio.
 pub struct State {
+    camera: Camera,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -89,6 +92,21 @@ impl State {
         };
         surface.configure(&device, &config);
 
+        let camera = Camera {
+            // position the camera 1 unit up and 2 units back
+            // +z is out of the screen
+            eye: (0.0, 1.0, 2.0).into(),
+            // have it look at the origin
+            target: (0.0, 0.0, 0.0).into(),
+            // which way is "up"
+            up: cgmath::Vector3::unit_y(),
+            aspect: config.width as f32 / config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
+
         let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
         let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
 
@@ -132,6 +150,7 @@ impl State {
         );
 
         Self {
+            camera,
             surface,
             device,
             queue,
