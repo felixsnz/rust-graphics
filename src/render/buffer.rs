@@ -1,5 +1,5 @@
 use bytemuck::Pod;
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, BufferUsages};
 pub struct Buffer<T: Copy + Pod> {
     pub(super) buff: wgpu::Buffer,
     len: usize,
@@ -14,7 +14,7 @@ impl<T:Copy + Pod> Buffer<T> {
             buff: device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
                 label: None,
                 contents,
-                usage,
+                usage: usage | BufferUsages::COPY_DST,
             }),
             len: data.len(),
             phantom_data: std::marker::PhantomData,
