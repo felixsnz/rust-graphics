@@ -1,3 +1,5 @@
+use crate::scene::camera::{self, CameraLayout};
+
 use super::super::Vertex as VertexTrait;
 
 /// Represents a Figure Vertex
@@ -28,14 +30,14 @@ impl VertexTrait for Vertex {
     const STRIDE: wgpu::BufferAddress = std::mem::size_of::<Self>() as wgpu::BufferAddress;
 }
 pub struct FigureLayout {
-    pub layout: wgpu::BindGroupLayout,
+    pub bind_group_layout: wgpu::BindGroupLayout,
 }
 
 
 impl FigureLayout {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            layout: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            bind_group_layout: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
@@ -71,13 +73,17 @@ impl FigurePipeline {
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         config: &wgpu::SurfaceConfiguration,
-        layout: &FigureLayout
+        layout: &FigureLayout,
+        camera_layout: &CameraLayout //temporary until i add a way to reference global layouts
     ) -> Self {
 
         let pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Figure Pipeline Layout"),
-            bind_group_layouts: &[&layout.layout],
+            bind_group_layouts: &[
+                &layout.bind_group_layout,
+                &camera_layout.bind_group_layout
+            ],
             push_constant_ranges: &[],
         });
 
