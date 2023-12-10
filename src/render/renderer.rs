@@ -1,17 +1,18 @@
+use wgpu::BindGroup;
 use winit::{
     event::*,
     window::  Window,
 };
 
-use crate::render::{
+use crate::{render::{
     pipelines::figure::{Vertex, FigurePipeline, FigureLayout},
     texture::Texture,
     mesh::{Mesh, Quad},
     model::Model
     
-};
+}, scene::camera::{CameraLayout, CameraController}};
 
-use crate::scene::camera::Camera;
+use crate::scene::camera::{Camera, CameraUniform};
 
 /// State gestiona los recursos de renderizado de la aplicación,
 /// actualmente para un triángulo. Con la expansión del proyecto,
@@ -19,6 +20,8 @@ use crate::scene::camera::Camera;
 /// alcance más amplio.
 pub struct State {
     camera: Camera,
+    camera_controller: CameraController,
+    camera_bind_group: wgpu::BindGroup,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -35,6 +38,7 @@ pub struct State {
  
 impl State {
     pub async fn new(window: Window) -> Self {
+        let camera_controller = CameraController::new(0.01);
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -92,29 +96,41 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let camera = Camera {
+        let camera = Camera::new(
+            &device,
             // position the camera 1 unit up and 2 units back
             // +z is out of the screen
-            eye: (0.0, 1.0, 2.0).into(),
+            (0.0, 1.0, 2.0).into(),
             // have it look at the origin
-            target: (0.0, 0.0, 0.0).into(),
+            (0.0, 0.0, 0.0).into(),
             // which way is "up"
-            up: cgmath::Vector3::unit_y(),
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
+            config.width as f32 / config.height as f32,
+        );
+
+        let camera_layout = CameraLayout::new(&device);
+
+        
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_layout.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera.ubuf.as_ref().unwrap().buff.as_entire_binding(),
+                }
+            ],
+            label: Some("camera_bind_group"),
+        });
 
 
         let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
         let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
 
-        let figure_bind_group_layout = FigureLayout::new(&device);
+        let figure_layout = FigureLayout::new(&device);
 
         let diffuse_bind_group = device.create_bind_group(
             &wgpu::BindGroupDescriptor {
-                layout: &figure_bind_group_layout.layout,
+                layout: &figure_layout.bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -146,11 +162,14 @@ impl State {
             &device,
             &shader,
             &config,
-            &figure_bind_group_layout
+            &figure_layout,
+            &camera_layout //temporary until i add global layouts
         );
 
         Self {
             camera,
+            camera_controller,
+            camera_bind_group,
             surface,
             device,
             queue,
@@ -179,6 +198,7 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
+        self.camera_controller.process_events(event);
 
         match event {
             WindowEvent::KeyboardInput {
@@ -198,6 +218,9 @@ impl State {
     }
 
     pub fn update(&mut self) {
+        self.camera_controller.update_camera(&mut self.camera);
+        self.camera.uniform.update_view_proj(&self.camera.params);
+        self.queue.write_buffer(&self.camera.ubuf.as_ref().unwrap().buff, 0, bytemuck::cast_slice(&[self.camera.uniform]));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -228,6 +251,7 @@ impl State {
 
             render_pass.set_pipeline(&self.quad_pipeline.pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
             render_pass.set_index_buffer(self.quad_model.ibuf().slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..1);
