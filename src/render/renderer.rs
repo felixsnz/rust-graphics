@@ -1,18 +1,20 @@
-use wgpu::BindGroup;
+use wgpu::{BindGroup, Instance};
 use winit::{
     event::*,
     window::  Window,
 };
-
+use cgmath::prelude::*;
 use crate::{render::{
-    pipelines::figure::{Vertex, FigurePipeline, FigureLayout},
+    pipelines::figure::{Vertex, FigurePipeline, FigureLayout, Instance as FigureInstance},
     texture::Texture,
     mesh::{Mesh, Quad},
-    model::Model
+    model::Model,
+    buffer::Buffer
     
 }, scene::camera::{CameraLayout, CameraController}};
 
 use crate::scene::camera::{Camera, CameraUniform};
+
 
 /// State gestiona los recursos de renderizado de la aplicación,
 /// actualmente para un triángulo. Con la expansión del proyecto,
@@ -20,6 +22,8 @@ use crate::scene::camera::{Camera, CameraUniform};
 /// alcance más amplio.
 pub struct State {
     camera: Camera,
+    
+    instance_buffer: Buffer<FigureInstance>,
     camera_controller: CameraController,
     camera_bind_group: wgpu::BindGroup,
     surface: wgpu::Surface,
@@ -31,6 +35,7 @@ pub struct State {
     toggle_pipeline: bool,     
     quad_pipeline:FigurePipeline,
     quad_model: Model<Vertex>,
+    instances: Vec<FigureInstance>,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: Texture, //for later usage
     
@@ -40,6 +45,28 @@ impl State {
     pub async fn new(window: Window) -> Self {
         let camera_controller = CameraController::new(0.01);
         let size = window.inner_size();
+
+
+        const NUM_INSTANCES_PER_ROW: u32 = 10;
+        const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
+        
+        let instances = (0..NUM_INSTANCES_PER_ROW).flat_map(|z| {
+            (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                let position = cgmath::Vector3 { x: x as f32, y: 0.0, z: z as f32 } - INSTANCE_DISPLACEMENT;
+
+                let rotation = if position.is_zero() {
+                    // this is needed so an object at (0, 0, 0) won't get scaled to zero
+                    // as Quaternions can affect scale if they're not created correctly
+                    cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0))
+                } else {
+                    cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                };
+
+                FigureInstance::new(position, rotation)
+            })
+        }).collect::<Vec<_>>();
+
+        
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -73,6 +100,8 @@ impl State {
             )
             .await
             .unwrap();
+
+        let instance_buffer = Buffer::new(&device, wgpu::BufferUsages::VERTEX, &instances);
         
         let surface_caps = surface.get_capabilities(&adapter);
         // Shader code in this tutorial assumes an Srgb surface texture. Using a different
@@ -168,6 +197,8 @@ impl State {
 
         Self {
             camera,
+            instances,
+            instance_buffer,
             camera_controller,
             camera_bind_group,
             surface,
@@ -253,8 +284,9 @@ impl State {
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.buff.slice(..));
             render_pass.set_index_buffer(self.quad_model.ibuf().slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..1);
+            render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..self.instances.len() as _);
         }
 
         // submit will accept anything that implements IntoIter
