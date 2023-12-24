@@ -1,6 +1,9 @@
 use crate::scene::camera::{self, CameraLayout};
 
-use super::super::Vertex as VertexTrait;
+use super::super::{
+    Vertex as VertexTrait,
+    texture::Texture
+};
 
 /// Represents a Figure Vertex
 #[repr(C)]
@@ -178,7 +181,13 @@ impl FigurePipeline {
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less, // 1.
+                stencil: wgpu::StencilState::default(), // 2.
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,

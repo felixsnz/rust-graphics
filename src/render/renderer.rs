@@ -37,6 +37,7 @@ pub struct State {
     quad_model: Model<Vertex>,
     instances: Vec<FigureInstance>,
     diffuse_bind_group: wgpu::BindGroup,
+    depth_texture: Texture,
     diffuse_texture: Texture, //for later usage
     
 }
@@ -72,7 +73,7 @@ impl State {
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let wgpu_instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
 
         // # Safety
@@ -154,7 +155,7 @@ impl State {
 
         let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
         let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
+        let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
         let figure_layout = FigureLayout::new(&device);
 
         let diffuse_bind_group = device.create_bind_group(
@@ -212,6 +213,7 @@ impl State {
             quad_model,
             diffuse_bind_group,
             diffuse_texture,
+            depth_texture,
         }
     }
 
@@ -220,6 +222,7 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
@@ -274,10 +277,19 @@ impl State {
                             b: 1.0,
                             a: 1.0
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store
+                    }),
+                    stencil_ops: None,
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
             });
 
             render_pass.set_pipeline(&self.quad_pipeline.pipeline);
