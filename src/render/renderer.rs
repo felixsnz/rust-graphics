@@ -7,13 +7,12 @@ use cgmath::prelude::*;
 use crate::{render::{
     pipelines::figure::{Vertex, FigurePipeline, FigureLayout, Instance as FigureInstance},
     texture::Texture,
-    mesh::{Mesh, Quad},
+    mesh::{Mesh, Quad, Cube},
     model::Model,
     buffer::Buffer
     
-}, scene::camera::{CameraLayout, CameraController}};
+}, scene::camera::{Camera, CameraUniform, Projection, CameraLayout, CameraController}};
 
-use crate::scene::camera::{Camera, CameraUniform};
 
 
 /// State gestiona los recursos de renderizado de la aplicación,
@@ -22,9 +21,11 @@ use crate::scene::camera::{Camera, CameraUniform};
 /// alcance más amplio.
 pub struct State {
     camera: Camera,
-    
+    projection: Projection,
+    camera_uniform: CameraUniform,
+    camera_buffer: Buffer<CameraUniform>,
     instance_buffer: Buffer<FigureInstance>,
-    camera_controller: CameraController,
+    pub camera_controller: CameraController,
     camera_bind_group: wgpu::BindGroup,
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -32,19 +33,19 @@ pub struct State {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
-    toggle_pipeline: bool,     
     quad_pipeline:FigurePipeline,
     quad_model: Model<Vertex>,
     instances: Vec<FigureInstance>,
     diffuse_bind_group: wgpu::BindGroup,
     depth_texture: Texture,
     diffuse_texture: Texture, //for later usage
+    pub mouse_pressed: bool
     
 }
  
 impl State {
     pub async fn new(window: Window) -> Self {
-        let camera_controller = CameraController::new(0.01);
+        let camera_controller = CameraController::new(2.0, 2.4);
         let size = window.inner_size();
 
 
@@ -60,7 +61,7 @@ impl State {
                     // as Quaternions can affect scale if they're not created correctly
                     cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0))
                 } else {
-                    cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                    cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(0.0))
                 };
 
                 FigureInstance::new(position, rotation)
@@ -126,18 +127,15 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let camera = Camera::new(
-            &device,
-            // position the camera 1 unit up and 2 units back
-            // +z is out of the screen
-            (0.0, 1.0, 2.0).into(),
-            // have it look at the origin
-            (0.0, 0.0, 0.0).into(),
-            // which way is "up"
-            config.width as f32 / config.height as f32,
-        );
+        let camera = Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let projection = Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
 
         let camera_layout = CameraLayout::new(&device);
+
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera, &projection);
+
+        let camera_buffer = Buffer::new(&device, wgpu::BufferUsages::UNIFORM, &[camera_uniform]);
 
         
 
@@ -146,7 +144,7 @@ impl State {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: camera.ubuf.as_ref().unwrap().buff.as_entire_binding(),
+                    resource: camera_buffer.buff.as_entire_binding(),
                 }
             ],
             label: Some("camera_bind_group"),
@@ -179,12 +177,31 @@ impl State {
 
         let mut quad_mesh = Mesh::new();
 
-        quad_mesh.push_quad(Quad::new(
-            Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], },
-            Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], },
-            Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], },
-            Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }
-        ));
+        // quad_mesh.push_quad(Quad::new(
+        //     Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], },
+        //     Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], },
+        //     Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], },
+        //     Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }
+        // ));
+
+        // quad_mesh.push(Vertex { position: [0.85966998, -0.2473291, 0.0], tex_coords: [0.85967, 0.84732914], });
+
+
+
+        // Definir los vértices del cubo directamente.
+        let a = Vertex { position: [0.0, 0.0, 0.0], tex_coords: [0.0, 0.0] };
+        let b = Vertex { position: [1.0, 0.0, 0.0], tex_coords: [1.0, 0.0] };
+        let c = Vertex { position: [1.0, 1.0, 0.0], tex_coords: [1.0, 1.0] };
+        let d = Vertex { position: [0.0, 1.0, 0.0], tex_coords: [0.0, 1.0] };
+        let e = Vertex { position: [0.0, 0.0, 1.0], tex_coords: [0.0, 0.0] };
+        let f = Vertex { position: [1.0, 0.0, 1.0], tex_coords: [1.0, 0.0] };
+        let g = Vertex { position: [1.0, 1.0, 1.0], tex_coords: [1.0, 1.0] };
+        let h = Vertex { position: [0.0, 1.0, 1.0], tex_coords: [0.0, 1.0] };
+
+        // Crear un cubo con los vértices definidos.
+        let cube = Cube::new(a, b, c, d, e, f, g, h);
+
+        quad_mesh.push_cube(cube);
 
         let quad_model = Model::new(&device, &quad_mesh).unwrap();
 
@@ -198,6 +215,9 @@ impl State {
 
         Self {
             camera,
+            camera_uniform,
+            camera_buffer,
+            projection,
             instances,
             instance_buffer,
             camera_controller,
@@ -208,12 +228,12 @@ impl State {
             config,
             size,
             window,
-            toggle_pipeline:true,
             quad_pipeline,
             quad_model,
             diffuse_bind_group,
             diffuse_texture,
             depth_texture,
+            mouse_pressed: false, // NEW!
         }
     }
 
@@ -222,6 +242,7 @@ impl State {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.projection.resize(new_size.width, new_size.height);
         self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
@@ -232,29 +253,37 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event);
 
         match event {
             WindowEvent::KeyboardInput {
                 input:
                 KeyboardInput {
                     state,
-                    virtual_keycode: Some(VirtualKeyCode::Space),
+                    virtual_keycode: Some(key),
                     ..
                 },
                 ..
+            } => self.camera_controller.process_keyboard(*key, *state),
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.camera_controller.process_scroll(delta);
+                true
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                state,
+                ..
             } => {
-                self.toggle_pipeline = *state == ElementState::Pressed;
+                self.mouse_pressed = *state == ElementState::Pressed;
                 true
             }
             _ => false
         }
     }
 
-    pub fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera.uniform.update_view_proj(&self.camera.params);
-        self.queue.write_buffer(&self.camera.ubuf.as_ref().unwrap().buff, 0, bytemuck::cast_slice(&[self.camera.uniform]));
+    pub fn update(&mut self,  dt: instant::Duration) {
+        self.camera_controller.update_camera(&mut self.camera, dt);
+        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        self.queue.write_buffer(&&self.camera_buffer.buff, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
