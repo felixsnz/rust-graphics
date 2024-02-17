@@ -5,15 +5,17 @@ use super::super::{
     texture::Texture
 };
 
+use super::super::model_obj::{ModelVertex, Vertex};
+
 /// Represents a Figure Vertex
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
+pub struct FigureVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
 }
 
-impl Vertex {
+impl FigureVertex {
 
     const ATTRIBS: [wgpu::VertexAttribute; 2] =
         wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
@@ -28,7 +30,7 @@ impl Vertex {
     }
 }
 
-impl VertexTrait for Vertex {
+impl VertexTrait for FigureVertex {
     const QUADS_INDEX: Option<wgpu::IndexFormat> = Some(wgpu::IndexFormat::Uint16);
     const STRIDE: wgpu::BufferAddress = std::mem::size_of::<Self>() as wgpu::BufferAddress;
 }
@@ -169,7 +171,7 @@ impl FigurePipeline {
                 module: shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    Vertex::desc(), Instance::desc()
+                    ModelVertex::desc(), //Instance::desc()//
                 ],
             },
             fragment: Some(wgpu::FragmentState {

@@ -5,7 +5,7 @@ use winit::{
 };
 use cgmath::prelude::*;
 use crate::{render::{
-    pipelines::figure::{Vertex, FigurePipeline, FigureLayout, Instance as FigureInstance},
+    pipelines::figure::{FigureVertex, FigurePipeline, FigureLayout, Instance as FigureInstance},
     texture::Texture,
     mesh::{Mesh, Quad, Cube},
     model::Model,
@@ -13,7 +13,9 @@ use crate::{render::{
     
 }, scene::camera::{Camera, CameraUniform, Projection, CameraLayout, CameraController}};
 
+use super::model_obj::{DrawModel, self};
 
+use crate::common::resources;
 
 /// State gestiona los recursos de renderizado de la aplicación,
 /// actualmente para un triángulo. Con la expansión del proyecto,
@@ -34,18 +36,19 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
     quad_pipeline:FigurePipeline,
-    quad_model: Model<Vertex>,
+    quad_model: Model<FigureVertex>,
     instances: Vec<FigureInstance>,
     diffuse_bind_group: wgpu::BindGroup,
     depth_texture: Texture,
     diffuse_texture: Texture, //for later usage
-    pub mouse_pressed: bool
+    pub mouse_pressed: bool,
+    obj_model: model_obj::Model
     
 }
  
 impl State {
     pub async fn new(window: Window) -> Self {
-        let camera_controller = CameraController::new(2.0, 2.4);
+        let camera_controller = CameraController::new(4.0, 2.0);
         let size = window.inner_size();
 
 
@@ -151,8 +154,8 @@ impl State {
         });
 
 
-        let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
-        let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+        let diffuse_bytes = include_bytes!("../../assets/images/dirt.png");
+        let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "dirt.png").unwrap();
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
         let figure_layout = FigureLayout::new(&device);
 
@@ -189,17 +192,35 @@ impl State {
 
 
         // Definir los vértices del cubo directamente.
-        let a = Vertex { position: [0.0, 0.0, 0.0], tex_coords: [0.0, 0.0] };
-        let b = Vertex { position: [1.0, 0.0, 0.0], tex_coords: [1.0, 0.0] };
-        let c = Vertex { position: [1.0, 1.0, 0.0], tex_coords: [1.0, 1.0] };
-        let d = Vertex { position: [0.0, 1.0, 0.0], tex_coords: [0.0, 1.0] };
-        let e = Vertex { position: [0.0, 0.0, 1.0], tex_coords: [0.0, 0.0] };
-        let f = Vertex { position: [1.0, 0.0, 1.0], tex_coords: [1.0, 0.0] };
-        let g = Vertex { position: [1.0, 1.0, 1.0], tex_coords: [1.0, 1.0] };
-        let h = Vertex { position: [0.0, 1.0, 1.0], tex_coords: [0.0, 1.0] };
+        // Vértices de la base inferior
+        // Definiciones de vértices con coordenadas UV únicas para cada cara del cubo.
+        // Corrección de las coordenadas UV para las caras superior e inferior del cubo.
+        // Coordenadas UV ajustadas para las caras superior e inferior.
+        // Coordenadas UV ajustadas para las caras superior e inferior.
+
+        let a = FigureVertex { position: [0.0, 0.0, 0.0], tex_coords: [0.0, 1.0] }; // bottom-left of bottom face
+        let b = FigureVertex { position: [1.0, 0.0, 0.0], tex_coords: [1.0, 1.0] }; // bottom-right of bottom face
+        let c = FigureVertex { position: [1.0, 1.0, 0.0], tex_coords: [1.0, 0.0] }; // top-right of bottom face
+        let d = FigureVertex { position: [0.0, 1.0, 0.0], tex_coords: [0.0, 0.0] }; // top-left of bottom face
+
+        let e = FigureVertex { position: [0.0, 0.0, 1.0], tex_coords: [0.0, 1.0] }; // bottom-left of top face
+        let f = FigureVertex { position: [1.0, 0.0, 1.0], tex_coords: [1.0, 1.0] }; // bottom-right of top face
+        let g = FigureVertex { position: [1.0, 1.0, 1.0], tex_coords: [1.0, 0.0] }; // top-right of top face
+        let h = FigureVertex { position: [0.0, 1.0, 1.0], tex_coords: [0.0, 0.0] }; // top-left of top face
 
         // Crear un cubo con los vértices definidos.
         let cube = Cube::new(a, b, c, d, e, f, g, h);
+
+
+        let obj_model =
+        resources::load_model("cube.obj", &device, &queue, &figure_layout.bind_group_layout)
+            .await
+            .unwrap();
+ 
+
+
+
+
 
         quad_mesh.push_cube(cube);
 
@@ -234,6 +255,7 @@ impl State {
             diffuse_texture,
             depth_texture,
             mouse_pressed: false, // NEW!
+            obj_model
         }
     }
 
@@ -283,7 +305,7 @@ impl State {
     pub fn update(&mut self,  dt: instant::Duration) {
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform.update_view_proj(&self.camera, &self.projection);
-        self.queue.write_buffer(&&self.camera_buffer.buff, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+        self.queue.write_buffer(&self.camera_buffer.buff, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -324,10 +346,12 @@ impl State {
             render_pass.set_pipeline(&self.quad_pipeline.pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
-            render_pass.set_vertex_buffer(1, self.instance_buffer.buff.slice(..));
-            render_pass.set_index_buffer(self.quad_model.ibuf().slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..self.instances.len() as _);
+            //render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
+            //render_pass.set_vertex_buffer(1, self.instance_buffer.buff.slice(..));
+            // render_pass.set_index_buffer(self.quad_model.ibuf().slice(..), wgpu::IndexFormat::Uint16);
+            // render_pass.draw_indexed(0..self.quad_model.num_indices, 0, 0..1 as _);
+
+            render_pass.draw_mesh_instanced(&self.obj_model.meshes[0], 0..self.instances.len() as u32);
         }
 
         // submit will accept anything that implements IntoIter

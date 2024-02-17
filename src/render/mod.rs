@@ -4,6 +4,7 @@ pub mod texture;
 pub mod mesh;
 pub mod model;
 pub mod buffer;
+pub mod model_obj;
 
 
 pub trait Vertex: Clone + bytemuck::Pod {
