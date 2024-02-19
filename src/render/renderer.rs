@@ -5,13 +5,12 @@ use winit::{
 };
 use cgmath::prelude::*;
 use crate::{render::{
-    pipelines::figure::{Vertex, FigurePipeline, FigureLayout, Instance as FigureInstance},
-    texture::Texture,
-    mesh::{Mesh, Quad, Cube},
-    model::Model,
-    buffer::Buffer
+    block::Block, buffer::Buffer, mesh::{Cube, Mesh, Quad}, model::Model, pipelines::figure::{FigureLayout, FigurePipeline, Instance as FigureInstance, Vertex}, texture::Texture,
+    atlas::{Atlas, BlockType}
     
-}, scene::camera::{Camera, CameraUniform, Projection, CameraLayout, CameraController}};
+}, scene::camera::{Camera, CameraController, CameraLayout, CameraUniform, Projection}};
+
+use super::block::BlockVertex;
 
 
 
@@ -34,12 +33,13 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
     quad_pipeline:FigurePipeline,
-    quad_model: Model<Vertex>,
+    quad_model: Model,
     instances: Vec<FigureInstance>,
     diffuse_bind_group: wgpu::BindGroup,
     depth_texture: Texture,
     diffuse_texture: Texture, //for later usage
-    pub mouse_pressed: bool
+    pub mouse_pressed: bool,
+    atlas: Atlas
     
 }
  
@@ -49,7 +49,7 @@ impl State {
         let size = window.inner_size();
 
 
-        const NUM_INSTANCES_PER_ROW: u32 = 10;
+        const NUM_INSTANCES_PER_ROW: u32 = 1;
         const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
         
         let instances = (0..NUM_INSTANCES_PER_ROW).flat_map(|z| {
@@ -149,12 +149,12 @@ impl State {
             ],
             label: Some("camera_bind_group"),
         });
-
+        let figure_layout = FigureLayout::new(&device);
 
         let diffuse_bytes = include_bytes!("../../assets/images/happy-tree.png");
         let diffuse_texture = Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
-        let figure_layout = FigureLayout::new(&device);
+        
 
         let diffuse_bind_group = device.create_bind_group(
             &wgpu::BindGroupDescriptor {
@@ -172,6 +172,8 @@ impl State {
                 label: Some("diffuse_bind_group"),
             }
         );
+
+        let atlas = Atlas::new(&device, &queue).unwrap();
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../../assets/shaders/shader.wgsl"));
 
@@ -201,7 +203,10 @@ impl State {
         // Crear un cubo con los vértices definidos.
         let cube = Cube::new(a, b, c, d, e, f, g, h);
 
-        quad_mesh.push_cube(cube);
+
+        let block = Block::new(BlockType::GRASS, [0,0,0], [0,0,0]);
+
+        quad_mesh.push_block(block);
 
         let quad_model = Model::new(&device, &quad_mesh).unwrap();
 
@@ -234,6 +239,7 @@ impl State {
             diffuse_texture,
             depth_texture,
             mouse_pressed: false, // NEW!
+            atlas
         }
     }
 
@@ -322,7 +328,7 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.quad_pipeline.pipeline);
-            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.atlas.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.quad_model.vbuf().slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.buff.slice(..));

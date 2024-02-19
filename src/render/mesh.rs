@@ -1,14 +1,14 @@
-use super::Vertex;
+use super::{block::{Block, BlockVertex}, Vertex};
 
 #[derive(Clone)]
 
 /// Represents a vec-based mesh on the CPU
-pub struct Mesh<V: Vertex> {
-    verts: Vec<V>,
+pub struct Mesh{
+    verts: Vec<BlockVertex>,
     indices: Vec<u16>
 }
 
-impl<V: Vertex> Mesh<V> {
+impl Mesh{
     /// Create a new `Mesh`.
     pub fn new() -> Self { Self { verts: Vec::new(), indices: Vec::new() } }
 
@@ -16,9 +16,9 @@ impl<V: Vertex> Mesh<V> {
     pub fn clear(&mut self) { self.verts.clear(); }
 
     /// Get a slice referencing the vertices of this mesh.
-    pub fn vertices(&self) -> &[V] { &self.verts }
+    pub fn vertices(&self) -> &[BlockVertex] { &self.verts }
 
-    pub fn push(&mut self, vert: V) { self.verts.push(vert); }
+    pub fn push(&mut self, vert: BlockVertex) { self.verts.push(vert); }
 
     // new method to add indices
     pub fn push_indices(&mut self, indices: &[u16]) {
@@ -30,12 +30,12 @@ impl<V: Vertex> Mesh<V> {
         &self.indices
     }
 
-    pub fn iter_verts(&self) -> std::slice::Iter<V> { self.verts.iter() }
+    pub fn iter_verts(&self) -> std::slice::Iter<BlockVertex> { self.verts.iter() }
 
     pub fn iter_indices(&self) -> std::vec::IntoIter<u16> { self.indices.clone().into_iter() }
 
     /// Push a new polygon onto the end of this mesh.
-    pub fn push_tri(&mut self, tri: Tri<V>) {
+    pub fn push_tri(&mut self, tri: Tri<BlockVertex>) {
 
         let start_index = self.verts.len() as u16;
         self.verts.push(tri.a);
@@ -49,7 +49,7 @@ impl<V: Vertex> Mesh<V> {
     }
 
     /// Push a new quad onto the end of this mesh.
-    pub fn push_quad(&mut self, quad: Quad<V>) {
+    pub fn push_quad(&mut self, quad: Quad<BlockVertex>) {
         let start_index = self.verts.len() as u16;
         // A quad is composed of two triangles. The code below converts the former to
         // the latter.
@@ -73,7 +73,7 @@ impl<V: Vertex> Mesh<V> {
     }
 
     // Método para añadir un cubo al mesh.
-    pub fn push_cube(&mut self, cube: Cube<V>) {
+    pub fn push_cube(&mut self, cube: Cube<BlockVertex>) {
         let start_index = self.verts.len() as u16;
     
         // Añadir los 8 vértices del cubo.
@@ -111,7 +111,26 @@ impl<V: Vertex> Mesh<V> {
     ];
         self.indices.extend_from_slice(&indices);
     }
-    
+
+
+    pub fn push_block(&mut self, block: Block) {
+
+
+        let mut block_vertices = Vec::with_capacity(4 * 6);
+        let mut block_indices = Vec::with_capacity(6 * 6);
+        let mut face_counter: u16 = 0;
+        for face in block.faces.iter() {
+            block_vertices.extend_from_slice(&face.vertices);
+            block_indices.extend_from_slice(&face.get_indices(face_counter));
+            face_counter += 1;
+        }
+
+        self.verts.extend(block_vertices);
+        self.indices.extend(block_indices)
+
+
+
+    }
 
     
 }

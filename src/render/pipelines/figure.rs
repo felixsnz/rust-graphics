@@ -108,7 +108,7 @@ impl FigureLayout {
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
                             view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         },
                         count: None,
                     },
@@ -117,7 +117,7 @@ impl FigureLayout {
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         // This should match the filterable field of the
                         // corresponding Texture entry above.
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                         count: None,
                     },
                 ],

@@ -1,17 +1,15 @@
 use super::{
-    buffer::Buffer,
-    mesh::Mesh,
-    Vertex,
+    block::BlockVertex, buffer::Buffer, mesh::Mesh, Vertex
 };
 /// Represents a mesh that has been sent to the GPU.
-pub struct Model<V: Vertex> {
-    vbuf: Buffer<V>,
+pub struct Model{
+    vbuf: Buffer<BlockVertex>,
     ibuf: Buffer<u16>,
     pub num_indices: u32,
 }
 
-impl<V: Vertex> Model<V> {
-    pub fn new(device: &wgpu::Device, mesh: &Mesh<V>) -> Option<Self> {
+impl Model{
+    pub fn new(device: &wgpu::Device, mesh: &Mesh) -> Option<Self> {
         if mesh.vertices().is_empty() || mesh.indices().is_empty() {
             return None;
         }
